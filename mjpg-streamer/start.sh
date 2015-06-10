@@ -85,4 +85,6 @@ export LD_LIBRARY_PATH="$(pwd)"
 #./mjpg_streamer -i "./input_control.so" -o "./output_http.so -w ./www"
 
 ## own using
-./mjpg_streamer -i "./input_uvc.so -n -f 10 -r SXGA" -o "./output_http.so -w ./www"
+# ./mjpg_streamer -i "./input_uvc.so -n -f 10 -r VGA" -o "./output_http.so -w ./www"
+# ./mjpg_streamer -i "./input_uvc.so -n -f 10 -r VGA" -o "./output_file.so -d 15000"
+./mjpg_streamer -i "./input_uvc.so -n -f 10 -r VGA" -o "./output_file_cps.so -f pics -d 5000"

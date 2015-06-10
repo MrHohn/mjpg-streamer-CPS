@@ -42,6 +42,14 @@
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
 
+/*-----------for networking part--------------*/
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+#define BUFFER_SIZE               1024  
+#define PORT_NO                  20001
+/*------------------end---------------------*/
+
 #define OUTPUT_PLUGIN_NAME "FILE output plugin"
 
 static pthread_t worker;
@@ -51,6 +59,17 @@ static char *folder = "/tmp";
 static unsigned char *frame = NULL;
 static char *command = NULL;
 static int input_number = 0;
+
+/******************************************************************************
+Description.: error function for networking
+Input Value.: -
+Return Value: -
+******************************************************************************/
+void error(const char *msg)
+{
+    perror(msg);
+    exit(0);
+}
 
 /******************************************************************************
 Description.: print a help message
@@ -202,6 +221,18 @@ void *worker_thread(void *arg)
     struct tm *now;
     unsigned char *tmp_framebuffer = NULL;
 
+    /*-----------------network part--------------*/
+
+    int sockfd, portno, n;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    char host[] = "localhost";
+    char bufferSend[BUFFER_SIZE];
+
+    /*-------------------end----------------------*/
+
+    /*start taking video after system got connection of the server*/
+
     /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
@@ -258,7 +289,7 @@ void *worker_thread(void *arg)
         counter++;
 
         DBG("writing file: %s\n", buffer2);
-
+        // printf("write to file:%s\n", buffer2);
         /* open file for write */
         if((fd = open(buffer2, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
             OPRINT("could not open the file %s\n", buffer2);
@@ -273,7 +304,86 @@ void *worker_thread(void *arg)
             return NULL;
         }
 
+
         close(fd);
+
+        /*-------------------send current frame here--------------*/
+
+        portno = PORT_NO;
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) 
+            error("ERROR opening socket");
+        // server = gethostbyname(argv[1]);
+        server = gethostbyname(host);
+        if (server == NULL) {
+            fprintf(stderr,"ERROR, no such host\n");
+            exit(0);
+        }
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length); 
+        serv_addr.sin_port = htons(portno);
+
+
+
+        if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+            error("ERROR connecting");
+        printf("\n[client] get connection to server\n");
+        printf("[client] start transmitting current frame\n");
+
+        // printf("Please enter the file name: ");
+        // bzero(bufferSend,BUFFER_SIZE);
+        // fgets(bufferSend,BUFFER_SIZE - 1,stdin);
+
+        printf("[client] file: %s\n", buffer2);  
+        n = write(sockfd,buffer2, sizeof(buffer2));
+        if (n < 0) 
+             error("ERROR writing to socket");
+        // bzero(bufferSend,BUFFER_SIZE);
+        // n = read(sockfd,bufferSend,BUFFER_SIZE - 1);
+        // if (n < 0) 
+        //      error("ERROR reading from socket");
+        // printf("%s\n",bufferSend);
+
+
+        // char file_name[] = "./pics/client.jpg";
+        // char file_name[1024];
+        // strcpy(file_name, buffer2);
+        FILE *fp = fopen(buffer2, "r");  
+        if (fp == NULL)  
+        {  
+            // printf("File:\t%s Not Found!\n", file_name);  
+            printf("File:\t%s Not Found!\n", buffer2);  
+        }  
+        else  
+        {  
+            bzero(bufferSend, BUFFER_SIZE);  
+            int file_block_length = 0;  
+            while( (file_block_length = fread(bufferSend, sizeof(char), BUFFER_SIZE, fp)) > 0)  
+            {  
+                // printf("file_block_length = %d\n", file_block_length);  
+
+                // send data to the client side  
+                if (send(sockfd, bufferSend, file_block_length, 0) < 0)  
+                {  
+                    printf("Send File:\t%s Failed!\n", buffer2);  
+                    break;  
+                }  
+
+                bzero(bufferSend, sizeof(bufferSend));  
+            }
+
+            fclose(fp);  
+            printf("[client] transfer finished\n");  
+        }
+        close(sockfd); // disconnect server
+        printf("[client] connection closed\n");
+
+
+
+
+        /*---------------------------end--------------------------*/
+
 
         /* call the command if user specified one, pass current filename as argument */
         if(command != NULL) {
