@@ -34,6 +34,7 @@ APP_BINARY = mjpg_streamer
 # define the names and targets of the plugins
 PLUGINS = input_uvc.so
 PLUGINS += output_file.so
+PLUGINS += output_file_cps.so
 PLUGINS += output_udp.so
 PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
@@ -89,6 +90,10 @@ output_file.so: mjpg_streamer.h utils.h
 	make -C plugins/output_file all
 	cp plugins/output_file/output_file.so .
 
+output_file_cps.so: mjpg_streamer.h utils.h
+	make -C plugins/output_file_cps all
+	cp plugins/output_file_cps/output_file_cps.so .
+
 ifeq ($(WXP_COMPAT),true)
 output_http.so: mjpg_streamer.h utils.h
 	make -C plugins/output_http -DWXP_COMPAT all
@@ -137,6 +142,7 @@ clean:
 	make -C plugins/input_uvc $@
 	make -C plugins/input_testpicture $@
 	make -C plugins/output_file $@
+	make -C plugins/output_file_cps $@
 	make -C plugins/output_http $@
 	make -C plugins/output_udp $@
 	make -C plugins/output_autofocus $@

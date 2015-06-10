@@ -27,7 +27,7 @@
 export LD_LIBRARY_PATH="$(pwd)"
 #./mjpg_streamer -i "input_uvc.so --help"
 
-./mjpg_streamer -i "./input_uvc.so" -o "./output_http.so -w ./www"
+# ./mjpg_streamer -i "./input_uvc.so" -o "./output_http.so -w ./www"
 #./mjpg_streamer -i "./input_uvc.so -d /dev/video0" -i "./input_uvc.so -d /dev/video1" -o "./output_http.so -w ./www"
 #valgrind ./mjpg_streamer -i "./input_uvc.so" -o "./output_http.so -w ./www"
 
@@ -84,3 +84,5 @@ export LD_LIBRARY_PATH="$(pwd)"
 ## a webpage while another program streams video/audio, like skype.
 #./mjpg_streamer -i "./input_control.so" -o "./output_http.so -w ./www"
 
+## own using
+./mjpg_streamer -i "./input_uvc.so -n -f 10 -r SXGA" -o "./output_http.so -w ./www"
