@@ -150,6 +150,7 @@ clean:
 	make -C plugins/output_viewer $@
 	make -C plugins/input_control $@
 	make -C plugins/output_rtsp $@
+	# make -C ./../server-app $@
 #	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 

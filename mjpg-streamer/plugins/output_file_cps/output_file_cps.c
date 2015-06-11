@@ -216,31 +216,98 @@ Return Value:
 ******************************************************************************/
 void *resultReceiver_thread(void *arg)
 {
-    int ok = 1;
-    int delayReceiver = 2000;
+    printf("In the receiver thread.\n");
 
-    // /* set cleanup handler to cleanup allocated ressources */
-    // pthread_cleanup_push(worker_cleanup, NULL);
-    while(ok >= 0 && !pglobal->stop) {
-        printf("In the receiver thread.\n");
-        /* if specified, wait now */
-        if(delayReceiver > 0) {
-            usleep(1000 * delayReceiver);
-        }
+    /*-----------------network part--------------*/
+
+    int sockfd, portno, n;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    struct in_addr ipv4addr;
+    char buffer[BUFFER_SIZE];
+    char header[] = "result"; 
+    char response[10];
+
+    portno = PORT_NO;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+    inet_pton(AF_INET, "127.0.0.1", &ipv4addr);
+    server = gethostbyaddr(&ipv4addr, sizeof(ipv4addr), AF_INET);
+    printf("\n[client] Host name: %s\n", server->h_name);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length); 
+    serv_addr.sin_port = htons(portno);
+
+    // finished initialize, try to connect
+
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+    {
+        printf("\n-------- The server is not available now. ---------\n\n");
+        error("ERROR connecting");
+    }
+    printf("[client] result thread get connection to server\n");
+    printf("[client] start receiving the result\n");
+
+    // send the header first
+    n = write(sockfd, header, sizeof(header));
+    if (n < 0) 
+         error("ERROR writing to socket");
+    // get the response
+    n = read(sockfd, response, sizeof(response));
+    if (n < 0) 
+         error("ERROR reading from socket");
+    
+    while(!pglobal->stop)
+    {
+        bzero(buffer, sizeof(buffer));
+        n = read(sockfd, buffer, sizeof(buffer));
+        if (n < 0) 
+         error("ERROR writing to socket");
+        else if (n > 0)
+        {
+            printf("-------------------------------------\n");
+            printf("[client] result from the server: %s", buffer);
+            printf("-------------------------------------\n");
+       }
     }
 
-    // /* cleanup now */
-    // pthread_cleanup_pop(1);
+    close(sockfd); // disconnect server
+    printf("[client] connection closed\n");
+
+    /*---------------------------end--------------------------*/
+
+    // int ok = 1;
+    // int delayReceiver = 2000;
+
+    // // /* set cleanup handler to cleanup allocated ressources */
+    // // pthread_cleanup_push(worker_cleanup, NULL);
+    // while(ok >= 0 && !pglobal->stop) {
+    //     printf("In the receiver thread.\n");
+    //     /* if specified, wait now */
+    //     if(delayReceiver > 0) {
+    //         usleep(1000 * delayReceiver);
+    //     }
+    // }
+
+    // // /* cleanup now */
+    // // pthread_cleanup_pop(1);
 
     return NULL;
 }
 /******************************************************************************
-Description.: this is the main worker thread
-              it loops forever, grabs a fresh frame and stores it to file
+Description.: this is the transmit thread
+              it loops forever, grabs a fresh frame and stores it to file,
+              also send it out to the server
 Input Value.:
 Return Value:
 ******************************************************************************/
-void *worker_thread(void *arg)
+void *transmit_thread(void *arg)
 {
     int ok = 1, frame_size = 0, rc = 0;
     char buffer1[1024] = {0}, buffer2[1024] = {0};
@@ -254,8 +321,10 @@ void *worker_thread(void *arg)
     int sockfd, portno, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    char host[] = "localhost";
     char bufferSend[BUFFER_SIZE];
+    struct in_addr ipv4addr;
+    char header[] = "transmit"; 
+    char response[10];
 
     /*-------------------end----------------------*/
 
@@ -341,8 +410,9 @@ void *worker_thread(void *arg)
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd < 0) 
             error("ERROR opening socket");
-        // server = gethostbyname(argv[1]);
-        server = gethostbyname(host);
+        inet_pton(AF_INET, "127.0.0.1", &ipv4addr);
+        server = gethostbyaddr(&ipv4addr, sizeof(ipv4addr), AF_INET);
+        printf("\n[client] Host name: %s\n", server->h_name);
         if (server == NULL) {
             fprintf(stderr,"ERROR, no such host\n");
             exit(0);
@@ -352,22 +422,19 @@ void *worker_thread(void *arg)
         bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length); 
         serv_addr.sin_port = htons(portno);
 
+        // finished initialize, try to connect
 
-
-        if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
         {
             printf("\n-------- The server is not available now. ---------\n\n");
             error("ERROR connecting");
         }
-        printf("\n[client] get connection to server\n");
+        printf("[client] transmit thread get connection to server\n");
         printf("[client] start transmitting current frame\n");
 
         // printf("Please enter the file name: ");
         // bzero(bufferSend,BUFFER_SIZE);
         // fgets(bufferSend,BUFFER_SIZE - 1,stdin);
-
-        char header[] = "transmit"; 
-        char response[10];
         
         // send the header first
         n = write(sockfd, header, sizeof(header));
@@ -620,7 +687,7 @@ Return Value: always 0
 int output_run(int id)
 {
     DBG("launching worker thread\n");
-    pthread_create(&worker, 0, worker_thread, NULL);
+    pthread_create(&worker, 0, transmit_thread, NULL);
     pthread_detach(worker);
     pthread_create(&resultReceiver, 0, resultReceiver_thread, NULL);
     pthread_detach(resultReceiver);
