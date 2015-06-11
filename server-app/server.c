@@ -28,6 +28,30 @@ void error(const char *msg)
 // function for sending back the result 
 void server_result (int sock)
 {
+    int n;
+    char buffer[BUFFER_SIZE];
+    char response[] = "ok";
+    char userLine[256];
+    int userNum;
+    printf("result part\n");
+
+    // reponse to the client
+    n = write(sock, response, sizeof(response));
+    if (n < 0) 
+        error("ERROR writting to socket");
+
+    while(1) 
+    {
+        if (fgets(userLine, sizeof(userLine), stdin)) {
+            n = write(sock, userLine, sizeof(userLine));
+            if (n < 0) 
+                error("ERROR writting to socket");
+        }
+
+    }
+
+    close(sock); 
+    printf("[server] Connection closed.\n\n");
 
 }
 
