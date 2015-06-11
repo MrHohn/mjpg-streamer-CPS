@@ -25,31 +25,25 @@ void error(const char *msg)
     exit(1);
 }
 
-/******** serverThread() *********************
- There is a separate instance of this function 
- for each connection.  It handles all communication
- once a connnection has been established.
- *****************************************/
-void serverThread (int sock)
+// function for sending back the result 
+void server_result (int sock)
+{
+
+}
+
+// function for transmitting the frames
+void server_transmitFrames (int sock)
 {
     int n;
-    // char buffer[256];
     char buffer[BUFFER_SIZE];
-    // char file_name[] = "./pics/client.jpg";
-    // char file_name[BUFFER_SIZE];
-    char *file_name;
-    int length = 0;  
-    int write_length = 0;
-
-    // Receive the header
-    char header[] = "transmit";
     char response[] = "ok";
-    bzero(buffer,BUFFER_SIZE);
-    n = read(sock, buffer, sizeof(buffer));
-    // n = read(sock,buffer, sizeof(header));
-    if (n < 0) error("ERROR reading from socket");
-    printf("[server] header content: %s\n",buffer);
 
+    char *file_name;
+    int write_length = 0;
+    int length = 0;  
+    printf("transmitting part\n");
+
+    // reponse to the client
     n = write(sock, response, sizeof(response));
     if (n < 0) error("ERROR writting to socket");
 
@@ -94,55 +88,91 @@ void serverThread (int sock)
     
 
     close(sock); 
-    printf("[server] Connection closed.\n\n");  
+    printf("[server] Connection closed.\n\n");
 
+}
+
+/******** serverThread() *********************
+ There is a separate instance of this function 
+ for each connection.  It handles all communication
+ once a connnection has been established.
+ *****************************************/
+void serverThread (int sock)
+{
+    int n;
+    char buffer[20];
+
+    // Receive the header
+    bzero(buffer,20);
+    n = read(sock, buffer, sizeof(buffer));
+    if (n < 0) error("ERROR reading from socket");
+    printf("[server] header content: %s\n",buffer);
+
+    if (strcmp(buffer, "transmit") == 0) 
+    {
+        server_transmitFrames(sock);
+    }
+    else if (strcmp(buffer, "result") == 0) 
+    {
+        server_result(sock);
+    }
+    else
+    {
+        close(sock); 
+        printf("[server] Command Unknown. Connection closed.\n\n");
+    }
+
+}
+
+void run_server()
+{
+    // init part
+    int sockfd, newsockfd, portno, pid;
+    socklen_t clilen;
+    struct sockaddr_in serv_addr, cli_addr;
+    clilen = sizeof(cli_addr);
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+       error("ERROR opening socket");
+    else printf ("[server] obtain socket descriptor successfully.\n"); 
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    // set up the port number
+    portno = PORT_NO;
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portno);
+    if (bind(sockfd, (struct sockaddr *) &serv_addr,
+             sizeof(serv_addr)) < 0) 
+             error("ERROR on binding");
+    else printf("[server] bind tcp port %d sucessfully.\n",portno);
+    if(listen(sockfd,5))
+     error("ERROR listening");
+    else printf ("[server] listening the port %d sucessfully.\n", portno);    
+    
+    // init finished, now wait for a client
+    while (1) {
+        newsockfd = accept(sockfd, 
+              (struct sockaddr *) &cli_addr, &clilen);
+        if (newsockfd < 0) 
+            error("ERROR on accept");
+        else printf ("\n[server] server has got connect from %s.\n", (char *)inet_ntoa(cli_addr.sin_addr));
+        pid = fork();
+        if (pid < 0)
+            error("ERROR on fork");
+        if (pid == 0)  {
+            close(sockfd);
+            serverThread(newsockfd);
+            exit(0);
+        }
+        // else close(newsockfd);
+    } /* end of while */
+    close(sockfd);
 }
 
 int main(int argc, char *argv[])
 {
-     int sockfd, newsockfd, portno, pid;
-     socklen_t clilen;
-     struct sockaddr_in serv_addr, cli_addr;
-
-     // if (argc < 2) {
-     //     fprintf(stderr,"ERROR, no port provided\n");
-     //     exit(1);
-     // }
-     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-     if (sockfd < 0) 
-        error("ERROR opening socket");
-     else printf ("[server] obtain socket descriptor successfully.\n"); 
-     bzero((char *) &serv_addr, sizeof(serv_addr));
-     // portno = atoi(argv[1]);
-     portno = PORT_NO;
-     serv_addr.sin_family = AF_INET;
-     serv_addr.sin_addr.s_addr = INADDR_ANY;
-     serv_addr.sin_port = htons(portno);
-     if (bind(sockfd, (struct sockaddr *) &serv_addr,
-              sizeof(serv_addr)) < 0) 
-              error("ERROR on binding");
-     else printf("[server] bind tcp port %d sucessfully.\n",portno);
-     if(listen(sockfd,5))
-      error("ERROR listening");
-     else printf ("[server] listening the port %d sucessfully.\n", portno);    
-     clilen = sizeof(cli_addr);
-     while (1) {
-         newsockfd = accept(sockfd, 
-               (struct sockaddr *) &cli_addr, &clilen);
-         if (newsockfd < 0) 
-             error("ERROR on accept");
-         else printf ("\n[server] server has got connect from %s.\n", (char *)inet_ntoa(cli_addr.sin_addr));
-         pid = fork();
-         if (pid < 0)
-             error("ERROR on fork");
-         if (pid == 0)  {
-             close(sockfd);
-             serverThread(newsockfd);
-             exit(0);
-         }
-         else close(newsockfd);
-     } /* end of while */
-     close(sockfd);
-     return 0; /* we never get here */
+    run_server();
+    return 0; /* we never get here */
 }
 
