@@ -1,8 +1,14 @@
-/* A simple server in the internet domain using TCP
-   The port number is passed as an argument 
-   This version runs forever, forking off a separate 
-   process for each connection
+/*************************************************
+        AUTHOR: Zihong Zheng
+*************************************************/
+
+/* 
+    A server in the internet domain using TCP
+    The port number is set in the code
+    It runs forever, forking off a separate 
+    process for each connection
 */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -19,12 +25,12 @@ void error(const char *msg)
     exit(1);
 }
 
-/******** DOSTUFF() *********************
+/******** serverThread() *********************
  There is a separate instance of this function 
  for each connection.  It handles all communication
  once a connnection has been established.
  *****************************************/
-void dostuff (int sock)
+void serverThread (int sock)
 {
     int n;
     // char buffer[256];
@@ -35,6 +41,17 @@ void dostuff (int sock)
     int length = 0;  
     int write_length = 0;
 
+    // Receive the header
+    char header[] = "transmit";
+    char response[] = "ok";
+    bzero(buffer,BUFFER_SIZE);
+    n = read(sock, buffer, sizeof(buffer));
+    // n = read(sock,buffer, sizeof(header));
+    if (n < 0) error("ERROR reading from socket");
+    printf("[server] header content: %s\n",buffer);
+
+    n = write(sock, response, sizeof(response));
+    if (n < 0) error("ERROR writting to socket");
 
     bzero(buffer,BUFFER_SIZE);
     n = read(sock,buffer, sizeof(buffer));
@@ -114,13 +131,13 @@ int main(int argc, char *argv[])
                (struct sockaddr *) &cli_addr, &clilen);
          if (newsockfd < 0) 
              error("ERROR on accept");
-         else printf ("\n[server] server has got connect from %d.\n", inet_ntoa(cli_addr.sin_addr));
+         else printf ("\n[server] server has got connect from %s.\n", (char *)inet_ntoa(cli_addr.sin_addr));
          pid = fork();
          if (pid < 0)
              error("ERROR on fork");
          if (pid == 0)  {
              close(sockfd);
-             dostuff(newsockfd);
+             serverThread(newsockfd);
              exit(0);
          }
          else close(newsockfd);
