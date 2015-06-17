@@ -42,6 +42,7 @@ void server_result (int sock)
 
     while(1) 
     {
+        // read user input and send it to client(a simple simulation)
         if (fgets(userLine, sizeof(userLine), stdin)) {
             n = write(sock, userLine, sizeof(userLine));
             if (n < 0) 
