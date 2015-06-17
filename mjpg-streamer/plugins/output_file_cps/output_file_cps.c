@@ -271,9 +271,9 @@ void *resultReceiver_thread(void *arg)
          error("ERROR writing to socket");
         else if (n > 0)
         {
-            printf("-------------------------------------\n");
+            printf("\n-------------------------------------\n");
             printf("[client] result from the server: %s", buffer);
-            printf("-------------------------------------\n");
+            printf("-------------------------------------\n\n");
        }
     }
 

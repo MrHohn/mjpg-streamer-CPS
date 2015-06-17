@@ -13,7 +13,9 @@ CC = gcc
 
 # CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 # CFLAGS += -DDEBUG
-# LFLAGS += -lpthread -ldl
+CFLAGS += -pthread
+CFLAGS += -Wall
+# LFLAGS += -lpthread
 
 all: server.o
 
